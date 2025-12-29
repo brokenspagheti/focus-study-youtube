@@ -21,11 +21,17 @@ class FocusApp {
 
   extractYouTubeUrl(url) {
     try {
+      // Handle empty or invalid URLs
+      if (!url || url.trim() === '') return '';
+      
       const urlObj = new URL(url);
       const videoId = urlObj.searchParams.get('v');
       const playlistId = urlObj.searchParams.get('list');
       
-      if (playlistId) {
+      // If both playlist and video ID exist, include both
+      if (playlistId && videoId) {
+        return `https://www.youtube.com/embed/${videoId}?list=${playlistId}&autoplay=1`;
+      } else if (playlistId) {
         return `https://www.youtube.com/embed/videoseries?list=${playlistId}&autoplay=1`;
       } else if (videoId) {
         return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
@@ -34,7 +40,8 @@ class FocusApp {
         return id ? `https://www.youtube.com/embed/${id}?autoplay=1` : '';
       }
       return '';
-    } catch {
+    } catch (e) {
+      console.error('Error parsing YouTube URL:', e);
       return '';
     }
   }
@@ -150,13 +157,20 @@ class FocusApp {
 
     loadBtn?.addEventListener('click', () => {
       const url = urlInput?.value || '';
-      this.embedUrl = this.extractYouTubeUrl(url);
+      const extracted = this.extractYouTubeUrl(url);
+      console.log('Input URL:', url);
+      console.log('Extracted embed URL:', extracted);
+      this.embedUrl = extracted;
       this.render();
     });
 
     urlInput?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        this.embedUrl = this.extractYouTubeUrl(urlInput.value);
+        const url = urlInput.value;
+        const extracted = this.extractYouTubeUrl(url);
+        console.log('Input URL:', url);
+        console.log('Extracted embed URL:', extracted);
+        this.embedUrl = extracted;
         this.render();
       }
     });
@@ -240,6 +254,7 @@ class FocusApp {
               type="text"
               placeholder="Paste YouTube video or playlist URL..."
               class="flex-1 h-10 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              value="${this.embedUrl ? 'Video loaded!' : ''}"
             />
             <button id="load-btn" class="h-10 px-4 rounded-md bg-primary text-background font-medium hover:opacity-90 transition-opacity">
               Load
@@ -258,8 +273,9 @@ class FocusApp {
           <iframe
             src="${this.embedUrl}"
             class="w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowfullscreen
+            frameborder="0"
           ></iframe>
         ` : `
           <div class="w-full h-full flex items-center justify-center text-muted">
@@ -374,5 +390,9 @@ class FocusApp {
   }
 }
 
-// Initialize app
-new FocusApp();
+// Initialize app when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => new FocusApp());
+} else {
+  new FocusApp();
+}
