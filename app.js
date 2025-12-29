@@ -2,6 +2,7 @@
 class FocusApp {
   constructor() {
     this.embedUrl = '';
+    this.originalUrl = '';
     this.isTheatre = true;
     this.showProgress = true;
     this.completed = 0;
@@ -22,27 +23,33 @@ class FocusApp {
   extractYouTubeUrl(url) {
     try {
       // Handle empty or invalid URLs
-      if (!url || url.trim() === '') return '';
+      if (!url || url.trim() === '') return { embed: '', original: '' };
+      
+      // Store original URL
+      this.originalUrl = url;
       
       const urlObj = new URL(url);
       const videoId = urlObj.searchParams.get('v');
       const playlistId = urlObj.searchParams.get('list');
       
+      let embedUrl = '';
+      
       // If both playlist and video ID exist, include both
       if (playlistId && videoId) {
-        return `https://www.youtube.com/embed/${videoId}?list=${playlistId}&autoplay=1`;
+        embedUrl = `https://www.youtube.com/embed/${videoId}?list=${playlistId}&autoplay=1`;
       } else if (playlistId) {
-        return `https://www.youtube.com/embed/videoseries?list=${playlistId}&autoplay=1`;
+        embedUrl = `https://www.youtube.com/embed/videoseries?list=${playlistId}&autoplay=1`;
       } else if (videoId) {
-        return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+        embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
       } else if (url.includes('youtu.be/')) {
         const id = url.split('youtu.be/')[1]?.split('?')[0];
-        return id ? `https://www.youtube.com/embed/${id}?autoplay=1` : '';
+        embedUrl = id ? `https://www.youtube.com/embed/${id}?autoplay=1` : '';
       }
-      return '';
+      
+      return { embed: embedUrl, original: url };
     } catch (e) {
       console.error('Error parsing YouTube URL:', e);
-      return '';
+      return { embed: '', original: url };
     }
   }
 
@@ -154,23 +161,26 @@ class FocusApp {
     const totalInput = document.getElementById('total-input');
     const workInput = document.getElementById('work-input');
     const breakInput = document.getElementById('break-input');
+    const openYtBtn = document.getElementById('open-yt-btn');
 
     loadBtn?.addEventListener('click', () => {
       const url = urlInput?.value || '';
-      const extracted = this.extractYouTubeUrl(url);
+      const { embed, original } = this.extractYouTubeUrl(url);
       console.log('Input URL:', url);
-      console.log('Extracted embed URL:', extracted);
-      this.embedUrl = extracted;
+      console.log('Extracted embed URL:', embed);
+      this.embedUrl = embed;
+      this.originalUrl = original;
       this.render();
     });
 
     urlInput?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         const url = urlInput.value;
-        const extracted = this.extractYouTubeUrl(url);
+        const { embed, original } = this.extractYouTubeUrl(url);
         console.log('Input URL:', url);
-        console.log('Extracted embed URL:', extracted);
-        this.embedUrl = extracted;
+        console.log('Extracted embed URL:', embed);
+        this.embedUrl = embed;
+        this.originalUrl = original;
         this.render();
       }
     });
@@ -188,6 +198,12 @@ class FocusApp {
     showProgressBtn?.addEventListener('click', () => {
       this.showProgress = true;
       this.render();
+    });
+
+    openYtBtn?.addEventListener('click', () => {
+      if (this.originalUrl) {
+        window.open(this.originalUrl, '_blank');
+      }
     });
 
     pomodoroBtn?.addEventListener('click', () => this.switchMode('pomodoro'));
@@ -261,14 +277,21 @@ class FocusApp {
             </button>
           </div>
 
-          <button id="theatre-btn" class="h-10 w-10 rounded-md border border-border hover:bg-secondary transition-colors" title="Toggle Theatre Mode">
-            ${this.isTheatre ? '⊟' : '⊡'}
-          </button>
+          <div class="flex gap-2">
+            ${this.embedUrl ? `
+              <button id="open-yt-btn" class="h-10 px-4 rounded-md border border-border hover:bg-secondary transition-colors text-sm" title="Open on YouTube">
+                📺 Open on YT
+              </button>
+            ` : ''}
+            <button id="theatre-btn" class="h-10 w-10 rounded-md border border-border hover:bg-secondary transition-colors" title="Toggle Theatre Mode">
+              ${this.isTheatre ? '⊟' : '⊡'}
+            </button>
+          </div>
         </div>
       </header>
 
       <!-- Video Player -->
-      <div class="w-full bg-black transition-all duration-300" style="height: ${this.isTheatre ? '70vh' : '50vh'}">
+      <div class="w-full bg-black transition-all duration-300 relative" style="height: ${this.isTheatre ? '70vh' : '50vh'}">
         ${this.embedUrl ? `
           <iframe
             src="${this.embedUrl}"
@@ -277,9 +300,16 @@ class FocusApp {
             allowfullscreen
             frameborder="0"
           ></iframe>
+          <div class="absolute top-4 right-4 bg-black/70 backdrop-blur-sm rounded-lg p-3 text-xs text-white/80">
+            <p>⚠️ Video not loading?</p>
+            <p class="mt-1">Click "📺 Open on YT" button above</p>
+          </div>
         ` : `
           <div class="w-full h-full flex items-center justify-center text-muted">
-            <p>Paste a YouTube URL above to start focusing</p>
+            <div class="text-center">
+              <p class="text-lg mb-2">Paste a YouTube URL above to start focusing</p>
+              <p class="text-sm text-muted">Supports videos and playlists</p>
+            </div>
           </div>
         `}
       </div>
@@ -375,6 +405,7 @@ class FocusApp {
             <h3 class="text-lg font-semibold mb-3">How to Use</h3>
             <ul class="space-y-2 text-sm text-muted">
               <li>• Paste any YouTube video or playlist URL</li>
+              <li>• If video doesn't load (embed disabled), click "📺 Open on YT"</li>
               <li>• Toggle theatre mode for adjustable video size</li>
               <li>• Choose Pomodoro (work/break cycles) or Counter timer</li>
               <li>• Track course progress with adjustable progress bar</li>
